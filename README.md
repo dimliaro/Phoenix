@@ -33,3 +33,27 @@ On re-runs, only fields that can change (date, status, scores) are updated.
 ## How to run
 
 1. Install dependencies:
+
+2. Get a free API key from football-data.org and create a `.env` file:
+FOOTBALLORG_API=your_key_here
+
+3. Run the pipeline:
+
+python phoenix.py
+
+
+
+This creates `football.db` in the project folder.
+
+## Roadmap
+
+- Refactor into `extract` / `transform` / `load` functions
+- Load directly from the validated DataFrame
+- Add logging and basic data quality checks
+- Schedule daily runs
+- Containerize with Docker
+
+## Notes
+
+Built as a hands-on learning project, with Claude as a tutor (hints and code
+review; the code is written by me).
