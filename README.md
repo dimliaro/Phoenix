@@ -7,49 +7,55 @@ creating duplicates, and existing matches are updated as results come in.
 
 ## How it works
 
-- **Extract:** calls the football-data.org API with an API key read from a `.env` file.
-  If the request fails, the script stops with a non-zero exit code.
-- **Transform:** flattens the nested JSON into one record per match (teams, scores,
-  status, date) and validates types and missing values with pandas.
-- **Load:** creates the `matches` table if it doesn't exist and writes the records
-  with an upsert (`INSERT ... ON CONFLICT(id) DO UPDATE`).
+- **`extract(url, headers)`:** calls the football-data.org API with an API key read
+  from a `.env` file. If the request fails, the script stops with a non-zero exit code.
+- **`transform(data)`:** flattens the nested JSON into one record per match and builds
+  a pandas DataFrame with proper types (datetime for kick-off time, nullable integers
+  for scores).
+- **`load(db_path, df)`:** creates the `PremierLeague` table if it doesn't exist,
+  converts the DataFrame into SQLite-compatible values (ISO date strings, `NULL` for
+  missing scores) and writes it with an upsert (`INSERT ... ON CONFLICT(match_id) DO UPDATE`).
 
 ## Database schema
 
-Table `matches`, one row per match:
+Table `PremierLeague`, one row per match:
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | INTEGER | Primary key (match id from the API) |
-| `utc_date` | TEXT | Kick-off time in UTC |
+| `match_id` | INTEGER | Primary key (match id from the API) |
+| `match_date` | TEXT | Kick-off time in UTC, ISO 8601 |
 | `matchday` | INTEGER | Round of the season |
 | `status` | TEXT | e.g. `FINISHED`, `TIMED`, `POSTPONED` |
 | `home_team` / `away_team` | TEXT | Team short names |
-| `ht_home_score` / `ht_away_score` | INTEGER | Half-time score, `NULL` if not played |
-| `ft_home_score` / `ft_away_score` | INTEGER | Full-time score, `NULL` if not played |
+| `home_team_id` / `away_team_id` | INTEGER | Team ids from the API (stable keys for joins) |
+| `ht_home_goals` / `ht_away_goals` | INTEGER | Half-time score, `NULL` if not played |
+| `ft_home_goals` / `ft_away_goals` | INTEGER | Full-time score, `NULL` if not played |
+| `winner` | TEXT | `HOME_TEAM`, `AWAY_TEAM`, `DRAW`, or `NULL` if not played |
 
-On re-runs, only fields that can change (date, status, scores) are updated.
+On re-runs, only fields that can change (date, status, scores, winner) are updated.
 
 ## How to run
 
 1. Install dependencies:
-
+   ```
+   pip install -r requirements.txt
+   ```
 2. Get a free API key from football-data.org and create a `.env` file:
-FOOTBALLORG_API=your_key_here
-
+   ```
+   FOOTBALLORG_API=your_key_here
+   ```
 3. Run the pipeline:
+   ```
+   python phoenix_refactored.py
+   ```
 
-python phoenix.py
-
-
-
-This creates `football.db` in the project folder.
+This creates `premier_league.db` in the project folder.
 
 ## Roadmap
 
-- Refactor into `extract` / `transform` / `load` functions
-- Load directly from the validated DataFrame
+- Add a `main()` entry point so functions can be imported without running the pipeline
 - Add logging and basic data quality checks
+- Integrate xG data from Understat (team mapping + match matching)
 - Schedule daily runs
 - Containerize with Docker
 
